@@ -1,0 +1,76 @@
+# Publish the Glassbox app to GitHub Pages.
+#
+# app/index.html is a single self-contained file: the run data is inlined by
+# `python -m glassbox.export`, and the page loads no external scripts, styles
+# or fonts and makes no fetch/XHR calls. So there is nothing to build here —
+# the directory is uploaded as-is and served at the site root, which is why the
+# published URL has no /app/index.html tail.
+#
+# What is NOT published: server.py and every /api/* route. Pages is static
+# hosting, so live inference, the live gradient check and rebuilding a run from
+# your own text stay local. Every lesson, checkpoint and recorded tensor works,
+# as do the browser-side labs (the MLP playground, the verifier lab) and the
+# prediction probes, which use localStorage.
+name: Deploy app to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    # Only redeploy when the published page actually changes.
+    paths:
+      - 'app/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Let a running deploy finish rather than cancelling it half-published.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fail if the app has no run data
+        # A page whose data block is still the empty placeholder renders an
+        # error card telling the reader to run the exporter. Better to fail the
+        # deploy than to publish that.
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, sys
+          html = pathlib.Path('app/index.html').read_text()
+          start = html.index('<script id="run-data" type="application/json">')
+          start += len('<script id="run-data" type="application/json">')
+          block = html[start:html.index('</script>', start)]
+          if '<' in block:
+              sys.exit('run-data block contains a raw "<"; the escaping is broken')
+          data = json.loads(block)
+          m = data['manifest']
+          checks = data['checks']
+          if not data.get('checkpoints'):
+              sys.exit('run-data has no checkpoints; run: python -m glassbox.export')
+          if not checks['all_passed']:
+              sys.exit(f"publishing a run with failing checks: {checks['passed']}/{checks['total']}")
+          print(f"run {m['run_id']}: {m['parameters']} params, "
+                f"{len(data['checkpoints'])} checkpoints, "
+                f"{checks['passed']}/{checks['total']} checks passed")
+          PY
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: app
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
