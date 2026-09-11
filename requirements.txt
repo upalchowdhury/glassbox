@@ -1,0 +1,26 @@
+# Glassbox — engine requirements.
+#
+# This is everything you need to build a run artifact, run the 26 numerical
+# checks, and open the app. Nothing here is optional.
+#
+# Verified on this machine:
+#   CPython 3.9.1 (v3.9.1:1e5d33e9b9)
+#   macOS 26.5.1, x86_64
+#   pip 24.1.1
+#
+# Python floor: 3.9.
+#   The package uses `from __future__ import annotations` throughout and no
+#   syntax newer than 3.9. Every number quoted in README.md was measured on
+#   CPython 3.9.1, so 3.9 is the version the results are pinned to. Newer
+#   Pythons will very likely work, but torch 2.2.2 publishes no wheels for
+#   3.13+, so on a newer interpreter you will need a newer torch and your
+#   numbers may drift from the README.
+
+# The model, autograd, and every tensor operation.
+torch==2.2.2
+
+# Not a declared dependency of torch 2.2.2 (checked: `numpy` does not appear
+# in torch's Requires-Dist), but glassbox/checks.py hashes weights via
+# `tensor.numpy().tobytes()` in the reproducibility check. Installing torch
+# alone leaves that check unable to run, so numpy is pinned here on purpose.
+numpy==1.26.4

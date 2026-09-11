@@ -1,0 +1,39 @@
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# Test and tooling caches
+.pytest_cache/
+
+# Virtualenvs. README.md "Setup" builds one here:
+#   /Library/Frameworks/Python.framework/Versions/3.9/bin/python3 -m venv --system-site-packages .venv
+.venv/
+venv/
+
+# macOS
+.DS_Store
+
+# ------------------------------------------------------------------------------
+# Generated run artifacts.
+#
+# Everything in runs/ is OUTPUT, not source: the JSON artifact, its byte-identical
+# latest.json copy, and the torch weight sidecars. Nothing here is edited by hand
+# and nothing here needs to be committed.
+#
+# To regenerate all of it (about 100 seconds on CPU):
+#
+#     make run
+#
+# or equivalently:
+#
+#     /Library/Frameworks/Python.framework/Versions/3.9/bin/python3 -m glassbox.export
+#
+# That rewrites runs/<run_id>.json, runs/latest.json, the matching .weights.pt
+# sidecars, and re-inlines the run data into app/index.html. The run id is a hash
+# of the manifest, so the same config and seed reproduce the same filename and the
+# same numbers.
+# ------------------------------------------------------------------------------
+runs/*.json
+runs/*.weights.pt
+runs/*.pt

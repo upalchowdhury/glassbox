@@ -1,0 +1,18 @@
+# Glassbox — optional extras for server.py.
+#
+# You do NOT need these to learn anything. app/index.html is self-contained:
+# `python -m glassbox.export` inlines the run data into it and you open the
+# file directly, offline.
+#
+# server.py is current, not legacy. It serves that same page and adds JSON
+# endpoints: inference from any named checkpoint's own weights, a real
+# finite-difference gradient check, and a bounded request to rebuild a run.
+# See API.md. It is optional because it adds live interaction, not content.
+#
+# Verified installed on this machine, CPython 3.9.1.
+
+-r requirements.txt
+
+fastapi==0.104.1
+uvicorn==0.24.0
+pydantic==2.12.5
