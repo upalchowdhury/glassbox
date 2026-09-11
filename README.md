@@ -1,5 +1,7 @@
 # Glassbox
 
+**Live:** https://upalchowdhury.github.io/glassbox/
+
 A character-level transformer with **3048 parameters** that you can inspect at every
 step: every attention row, every MLP dot product, every gradient. It is taken through
 the whole modern post-training sequence — pretraining, supervised fine-tuning, LoRA,
@@ -211,6 +213,15 @@ Its numbers are meaningless; it exists to prove the wiring works. It still repor
 ---
 
 ## Open the app
+
+**In a browser, nothing installed:** **https://upalchowdhury.github.io/glassbox/**
+
+That is the same `app/index.html` served by GitHub Pages. The page is fully functional
+there: all fourteen lessons, all seven checkpoints, every recorded tensor, the
+browser-side labs and the prediction probes. What is *not* available on Pages is
+`server.py` and the `/api/*` routes, because Pages is static hosting — live inference from
+a chosen checkpoint, the live gradient check, and rebuilding a run from your own text need
+the local server below.
 
 **Offline, no server.** `app/index.html` is a single self-contained file with the run
 data already inlined by `glassbox.export`. Just open it:
