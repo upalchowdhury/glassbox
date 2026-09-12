@@ -9,6 +9,38 @@ reward modelling, DPO, and GRPO against a verifier — as one reproducible pipel
 Every number the app displays is computed by that pipeline and written into a run
 artifact, never hard-coded into the page.
 
+## Interactive course layer
+
+The browser course now follows one continuous journey:
+
+```
+TinyGPT → MoE → SFT / LoRA → environment design → GRPO / RLVR → agent harness → scaling
+```
+
+The persistent course shell provides a progress path, **See it / Explain it / Derive it**
+depth modes, deterministic controls, reset, and local experiment forks. Each lab follows
+the same loop: predict, run one controlled deterministic step, inspect labelled values,
+change one variable, and compare the result.
+
+The original TinyGPT tensors, gradients, checkpoints, and numerical checks are **recorded
+training traces** from the Python engine. The new MoE, environment, agent, and scaling labs
+are clearly labelled **interactive deterministic training traces**: they are fixed numerical
+fixtures designed to teach the mechanism, not claims of live GPU training or new model
+capability. `app/course-engine.js` contains those serializable fixtures and calculations;
+`app/course-content.js` contains course navigation metadata.
+
+Run the course-simulation tests with:
+
+```sh
+node --test app/course-engine.test.js
+```
+
+They cover MoE top-k/capacity behaviour, LoRA update shapes, JSON and code verifier
+behaviour, GRPO group-relative advantages, and split isolation. To add a lab, place its
+small deterministic calculation in `course-engine.js`, add its route metadata to
+`course-content.js`, and render it as a module in `app/index.html` without changing the
+recorded run artifact format.
+
 ---
 
 ## What is real and what is not
