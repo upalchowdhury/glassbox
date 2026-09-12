@@ -1,8 +1,7 @@
 # Glassbox — optional extras for server.py.
 #
-# You do NOT need these to learn anything. app/index.html is self-contained:
-# `python -m glassbox.export` inlines the run data into it and you open the
-# file directly, offline.
+# You do NOT need these to read the course. Open app/index.html offline,
+# keeping its sibling JavaScript and CSS assets in the same directory.
 #
 # server.py is current, not legacy. It serves that same page and adds JSON
 # endpoints: inference from any named checkpoint's own weights, a real

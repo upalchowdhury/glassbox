@@ -42,7 +42,7 @@ from pathlib import Path
 from typing import Any, AsyncIterator, Dict, Iterator, List, Optional, Sequence, Tuple
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 SERVER_VERSION = "1.0.0"
@@ -50,6 +50,9 @@ SERVER_VERSION = "1.0.0"
 ROOT = Path(__file__).resolve().parent
 RUNS_DIR = ROOT / "runs"
 APP_HTML = ROOT / "app" / "index.html"
+READING_ASSETS = frozenset({
+    "course-engine.js", "course-content.js", "reading-chapters.js", "reading.js", "reading.css",
+})
 
 #: Checkpoint lineage produced by :func:`glassbox.export.build_run`, in order.
 CHECKPOINT_NAMES: Tuple[str, ...] = (
@@ -931,6 +934,17 @@ def index() -> HTMLResponse:
         )
     rendered, note = render_app_html(html, ensure_loaded())
     return HTMLResponse(content=rendered, headers={"X-Glassbox-Run-Data": note})
+
+
+@app.get("/{asset_name}", include_in_schema=False)
+def reading_asset(asset_name: str) -> FileResponse:
+    """Serve only published reading assets, never repository files or weights."""
+    if asset_name not in READING_ASSETS:
+        raise HTTPException(status_code=404, detail="Unknown reading asset")
+    path = APP_HTML.parent / asset_name
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Reading asset is missing")
+    return FileResponse(path)
 
 
 @app.get("/api/status")

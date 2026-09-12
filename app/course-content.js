@@ -2,17 +2,17 @@
 (function attachCourseContent(root) {
   root.GlassboxCourseContent = {
     modules: [
-      ['tinygpt', 'TinyGPT', 'Pretraining from scratch'],
-      ['moe', 'MoE', 'Route tokens through experts'],
-      ['posttrain', 'SFT + LoRA', 'Teach and adapt the base model'],
-      ['environment', 'Environment', 'Design the task before RL'],
-      ['grpo', 'GRPO / RLVR', 'Learn only from a valid environment'],
-      ['agents', 'Agent harness', 'Evaluate full tool trajectories'],
-      ['scaling', 'Scaling', 'Balance workers, queues, and recovery'],
-      ['dashboard', 'Journey dashboard', 'Compare every checkpoint'],
+      ['tinygpt', 'How models learn', 'Pretraining from scratch'],
+      ['moe', 'Mixture of experts', 'Route tokens through experts'],
+      ['posttrain', 'Teaching and adapting', 'SFT, LoRA, and preferences'],
+      ['environment', 'Define success', 'Design the task before RL'],
+      ['grpo', 'Learning from rewards', 'GRPO and verifiable rewards'],
+      ['agents', 'From answers to agents', 'Inspect full tool trajectories'],
+      ['scaling', 'Scaling the system', 'Workers, queues, and recovery'],
+      ['dashboard', 'Put it all together', 'Diagnosis and conceptual review'],
     ],
     depth: {
-      see: 'See it', explain: 'Explain it', derive: 'Derive it',
+      see: 'Summary', explain: 'Read', derive: 'Deep dive',
     },
   };
 }(typeof window !== 'undefined' ? window : globalThis));

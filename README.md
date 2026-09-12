@@ -1,376 +1,167 @@
 # Glassbox
 
-**Live:** https://upalchowdhury.github.io/glassbox/
+A reading-first guide to language-model systems, with an optional microscope into a
+small recorded transformer run.
 
-A character-level transformer with **3048 parameters** that you can inspect at every
-step: every attention row, every MLP dot product, every gradient. It is taken through
-the whole modern post-training sequence — pretraining, supervised fine-tuning, LoRA,
-reward modelling, DPO, and GRPO against a verifier — as one reproducible pipeline.
-Every number the app displays is computed by that pipeline and written into a run
-artifact, never hard-coded into the page.
+Open [app/index.html](app/index.html) in a modern browser. No code, account, Python
+installation, quiz, or training run is required to read the course. Keep the entire
+`app/` directory together: the HTML loads sibling JavaScript and CSS files.
 
-## Interactive course layer
+## The reading journey
 
-The browser course now follows one continuous journey:
+Eight connected chapters follow Pip from next-token prediction to agents and systems:
 
+1. How models learn: tokens, embeddings, attention, loss, gradients, AdamW, generation.
+2. Mixture of experts: routing, weighted merging, capacity, balancing, systems costs.
+3. Teaching and adapting: SFT masks, LoRA, merging, forgetting, and preferences.
+4. Define success: environments, reset, termination, task-aware verification, shortcuts.
+5. Learning from rewards: group advantages, clipping, reference policies, credit assignment.
+6. From answers to agents: harnesses, trajectories, permissions, retries, evaluation.
+7. Scaling the system: parallelism, memory, queues, staleness, recovery.
+8. Put it all together: diagnostic case studies and a conceptual review.
+
+The chapters contain roughly 10,000 words, small worked calculations, failure cases,
+fully explained mental-review questions, takeaways, and bridges. Readers can follow
+the whole explanation without writing or executing code.
+
+The learning target is conceptual understanding: explain mechanisms, predict
+consequences, and diagnose misleading results. Reading does not certify professional
+implementation or operational expertise. Reader testing is still needed to assess
+actual comprehension and retention.
+
+## Reading controls
+
+- **Read** is the default: complete prose and worked examples.
+- **Deep dive** opens additional notation and derivations.
+- **Summary** is explicitly an overview, not a substitute for the chapter.
+- **Complete book** displays every chapter, review explanation, derivation, and the
+  glossary. Use its print button to print or save a PDF through the browser.
+- Chapter contents link to individual sections. Routes such as
+  `#grpo/section-3` can be bookmarked or shared.
+- **Bookmark / Resume** stores a reading place, including the current section.
+- **Mark chapter as read** is explicit and reversible. Visits do not count as
+  completion. Read marks are not mastery scores.
+- Reading depth, progress, and bookmarks use local browser storage when available.
+  Reading remains usable when storage is blocked or corrupted. No tracking or uploads.
+
+The original recorded-reference lessons remain available in the sidebar. They are
+optional: opening them does not change the chapter sequence or gate later chapters.
+Their checkpoint selector applies to the recorded inspectors, not the book examples.
+
+## What the numbers mean
+
+There are three separate kinds of material:
+
+| Material | What it establishes |
+|---|---|
+| Chapter calculations | Arithmetic from explicitly stated teaching inputs |
+| Hypothetical cases and trajectories | An explanation of a mechanism or failure, not a benchmark |
+| Recorded reference traces | Measurements from the embedded Python run artifact |
+
+The browser reader does not train TinyGPT or MoE, execute model-written repair code,
+run agents, or benchmark hardware. A JSON verifier really parses and checks the
+chapter's specified status task; it does not claim to check every aspect of helpfulness.
+
+The former synthetic checkpoint controls, checkbox-based RL gate, source-text
+“code test” matcher, fabricated agent scores, and invented utilization estimates
+have been removed from the course path. The reading-first direction supersedes the
+mandatory lab interactions in [the original brief](prompts/impl.md).
+
+## Running and publishing
+
+**Offline:** open `app/index.html`, with its sibling assets present. External paper
+links are optional and require a connection. No network requests are needed to read
+the local book.
+
+**Static hosting:** publish the entire `app/` directory. The included Pages workflow
+uploads that directory; there is no frontend build step. It does not publish the
+Python API.
+
+**Optional local API:** choose a compatible Python environment and install the
+engine/server dependencies. The pinned requirements target Python 3.9-era tooling;
+use an interpreter supported by those versions.
+
+```sh
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements-server.txt
+.venv/bin/python server.py --port 8077
 ```
-TinyGPT → MoE → SFT / LoRA → environment design → GRPO / RLVR → agent harness → scaling
-```
 
-The persistent course shell provides a progress path, **See it / Explain it / Derive it**
-depth modes, deterministic controls, reset, and local experiment forks. Each lab follows
-the same loop: predict, run one controlled deterministic step, inspect labelled values,
-change one variable, and compare the result.
+Open `http://127.0.0.1:8077`. The server serves the reading assets from an explicit
+allowlist as well as the recorded-run page. See [API.md](API.md) for the optional
+inference, gradient-check, and run-building endpoints. This is not required for learning.
 
-The original TinyGPT tensors, gradients, checkpoints, and numerical checks are **recorded
-training traces** from the Python engine. The new MoE, environment, agent, and scaling labs
-are clearly labelled **interactive deterministic training traces**: they are fixed numerical
-fixtures designed to teach the mechanism, not claims of live GPU training or new model
-capability. `app/course-engine.js` contains those serializable fixtures and calculations;
-`app/course-content.js` contains course navigation metadata.
+## Verification
 
-Run the course-simulation tests with:
+Frontend arithmetic and content-contract tests need Node.js:
 
 ```sh
 node --test app/course-engine.test.js
 ```
 
-They cover MoE top-k/capacity behaviour, LoRA update shapes, JSON and code verifier
-behaviour, GRPO group-relative advantages, and split isolation. To add a lab, place its
-small deterministic calculation in `course-engine.js`, add its route metadata to
-`course-content.js`, and render it as a module in `app/index.html` without changing the
-recorded run artifact format.
-
----
-
-## What is real and what is not
-
-Read this before you read any number below.
-
-**Real.** The model, the autograd, the optimiser, the KV cache, the LoRA decomposition,
-the Bradley–Terry reward loss, the DPO objective, the clipped group-relative policy
-objective, and the verifiers are all genuine implementations. 26 numerical checks
-assert things that would break if they were not: attention rows sum to 1, a
-finite-difference gradient matches autograd, cached and uncached decoding agree,
-merging a LoRA adapter is equivalent to not merging it, a zero-variance reward group
-carries no gradient signal. All 26 pass.
-
-**Not real: the scale.** This is the entire dataset.
-
-| Thing | Count |
-|---|---|
-| Parameters | 3048 |
-| Vocabulary | 45 tokens (4 special + 41 characters) |
-| Training paragraphs | 8 |
-| Validation paragraphs | 2 |
-| Instruction examples (SFT) | 12 |
-| Preference pairs | 6 |
-| Verifiable task families | 3 |
-
-Eight paragraphs is not a corpus. Twelve instruction examples is not an instruction
-dataset. Six preference pairs cannot establish that a reward model generalises.
-
-**This demonstrates mechanisms, not capability.** The distinction matters because the
-two are easy to confuse when a loss curve goes down.
-
-**Held-out instruction accuracy is 0.000. That is the honest result, not a bug.** After
-SFT the model scores 0.917 exact match on the 12 examples it trained on and 1.000 on a
-re-ask of those same prompts — and **0.000** on paraphrases of them and **0.000** on
-unseen prompts. It memorised. A model this size, with twelve examples, can do nothing
-else. The pipeline reports the held-out number next to the training number on purpose,
-because a project that showed you only the 0.917 would be lying to you.
-
-The same honesty applies elsewhere: the `compose` task family scores **0.000 at every
-single checkpoint**. Genuinely held-out composition is never solved here. The RL stage
-does not fix it and is not reported as if it had.
-
----
-
-## Setup
-
-### The one thing that will bite you
-
-`python3` on this machine is **not** the interpreter that can run this:
-
-```
-$ python3 -V
-Python 3.12.1            # /opt/local/bin/python3
-$ python3 -c "import torch"
-ModuleNotFoundError: No module named 'torch'
-```
-
-There is exactly one interpreter here with torch installed:
-
-```
-$ /Library/Frameworks/Python.framework/Versions/3.9/bin/python3 -V
-Python 3.9.1
-```
-
-So every command below uses that full path, or a virtualenv built from it. Plain
-`python3` will fail at the first import. The `Makefile` defaults `PYTHON` to the
-framework interpreter for this reason, so `make` targets work with no arguments.
-
-### Option A — use the framework interpreter directly (nothing to install)
-
-Verified: torch 2.2.2, numpy 1.26.4, fastapi 0.104.1, uvicorn 0.24.0, pydantic 2.12.5
-and pytest 7.4.3 are already present there.
+Browser smoke tests need Node 22+ and Chrome/Chromium; no npm packages:
 
 ```sh
-cd /Users/upalc/Documents/deeplearning-tuts/llmtuning
-/Library/Frameworks/Python.framework/Versions/3.9/bin/python3 -m glassbox.export
+node tests/reading-browser.mjs
+# Nonstandard installation:
+CHROME_BIN=/path/to/chromium node tests/reading-browser.mjs
 ```
 
-### Option B — a virtualenv that borrows the installed torch (fast, no download)
+The browser test starts a loopback-only fixture server and disposable Chrome profile.
+It checks all chapters and recorded routes, reading depths, progress/undo, section
+bookmarks and reload, the ungated GRPO route, glossary, PDF output, mobile overflow,
+storage failures, missing content/run data, and offline file access.
 
-This is the quickest way to get an isolated `python`/`pip` without re-downloading a
-150 MB wheel. `--system-site-packages` lets the venv see the framework interpreter's
-torch.
+Server assets and HTML-injection regressions:
 
 ```sh
-cd /Users/upalc/Documents/deeplearning-tuts/llmtuning
-/Library/Frameworks/Python.framework/Versions/3.9/bin/python3 -m venv --system-site-packages .venv
-.venv/bin/python -c "import torch, numpy; print(torch.__version__, numpy.__version__)"
-# 2.2.2 1.26.4
+.venv/bin/python -m unittest tests.test_reading_assets \
+  tests.test_server.ScriptBreakoutTests tests.test_export.HtmlInjection
 ```
 
-### Option C — a clean virtualenv that installs its own torch
-
-Use this on a machine that is not this one. Note that a clean Python 3.9.1 venv ships
-pip 20.2.3, which works but is old enough that some pip flags are missing; upgrading is
-worthwhile.
+The model suite is separate and requires the Python dependencies:
 
 ```sh
-cd /Users/upalc/Documents/deeplearning-tuts/llmtuning
-/Library/Frameworks/Python.framework/Versions/3.9/bin/python3 -m venv .venv
-.venv/bin/python -m pip install --upgrade pip
-.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m tests.run_checks
+.venv/bin/python -m glassbox.checks
 ```
 
-This downloads about 150 MB. Dependency resolution is verified on this machine — a
-fresh 3.9.1 venv resolves to `torch-2.2.2 numpy-1.26.4 Jinja2-3.1.6 MarkupSafe-3.0.3
-filelock-3.19.1 fsspec-2025.10.0 mpmath-1.3.0 networkx-3.2.1 sympy-1.14.0
-typing_extensions-4.16.0`.
+Recorded check results belong to their artifact and environment. They are not a
+claim that every test passes under every installed PyTorch version.
 
-For the optional server, add the extras:
+## Content architecture
+
+- `app/reading-chapters.js`: original prose, review explanations, glossary, source links.
+- `app/reading.js`: chapter, home, glossary, and full-book rendering.
+- `app/reading.css`: readable typography, responsive tables, print layout.
+- `app/course-engine.js`: pure worked-example calculations, with explicit assumptions.
+- `app/course-content.js`: short navigation labels.
+- `app/index.html`: existing shell, routing, persistence, recorded inspectors and run data.
+
+To add a chapter, add its content and navigation entry. All essential explanation
+belongs in the chapter text. Add any new calculation to the pure engine, render its
+labelled example, and test the math and reading contract. Never replace an unavailable
+measurement with an invented checkpoint or success badge.
+
+## Optional: rebuild the recorded model
 
 ```sh
-.venv/bin/python -m pip install -r requirements-server.txt
+.venv/bin/python -m glassbox.export
 ```
 
-### Requirements, and why numpy is pinned
+The exporter writes run JSON, checkpoint-weight sidecars, and the embedded run-data
+block in `app/index.html`. It does not rewrite the reading chapters or sibling assets.
+Use `--no-html` to preserve the currently embedded artifact, and `--help` for model,
+seed, and step-count options. Model size, data, losses, checks, and checkpoint lineage
+are recorded in the artifact; the default tiny model demonstrates mechanisms, not
+broad capability.
 
-`requirements.txt` is the engine: **torch 2.2.2** and **numpy 1.26.4**. numpy is listed
-explicitly because torch 2.2.2 does **not** declare it as a dependency (it is absent
-from torch's `Requires-Dist`), yet `glassbox/checks.py` hashes weights through
-`tensor.numpy().tobytes()` in the reproducibility check. Install torch alone and that
-check cannot run.
+## Historical experiment notes
 
-`requirements-server.txt` holds the extras that only `server.py` needs — fastapi,
-uvicorn, pydantic. You never need them to learn anything; the app works offline from a
-file.
-
-**Python floor: 3.9**, verified on CPython 3.9.1 (macOS 26.5.1, x86_64, pip 24.1.1).
-Every number in this README was measured on that interpreter. torch 2.2.2 publishes no
-wheels for Python 3.13+, so a newer interpreter needs a newer torch and your numbers
-will drift.
-
----
-
-## Build a run
-
-```sh
-/Library/Frameworks/Python.framework/Versions/3.9/bin/python3 -m glassbox.export
-```
-
-That runs the entire pipeline. On this machine it takes **about 100 seconds** on CPU —
-measured at 100.14 s and 118.56 s on two runs of the same config, the spread being
-machine load. Every artifact records its own figure in `manifest.elapsed_seconds`, so
-you never have to trust this paragraph. Output:
-
-```
-[glassbox] building model
-[glassbox] pretraining for 2000 steps
-[glassbox] instruction tuning for 400 steps
-[glassbox] instruction tuning with LoRA adapters on a frozen base
-[glassbox] training a reward model on preference pairs
-[glassbox] DPO for 200 steps
-[glassbox] warm-starting the policy on task formatting
-[glassbox] GRPO for 60 iterations on held-out task values
-[glassbox] evaluating every checkpoint under one pinned decoding protocol
-[glassbox] running numerical checks
-[glassbox] wrote .../runs/run_908d2b0535c2.json (0.71 MB)
-[glassbox] checks: 26/26 passed
-[glassbox] injected run data into .../app/index.html
-```
-
-It writes:
-
-- `runs/run_<12 hex>.json` — the artifact for that run (0.71 MB). The id is a hash of
-  the manifest, so the same config and seed produce the same filename.
-- `runs/latest.json` — a byte-identical copy, so tooling has a stable path.
-- `runs/run_<12 hex>.weights.pt` and `runs/latest.weights.pt` — a torch sidecar holding
-  the trained tensors for all seven checkpoints (~146 KB). The JSON carries the recorded
-  numbers; the sidecar carries the weights, so the server can decode from the checkpoint
-  a caller actually asked for instead of answering from one and relabelling the reply.
-- `app/index.html` — the run data is inlined into the page's `<script id="run-data">`
-  block, which is what makes the app self-contained.
-
-**Exit status is 0 only if all 26 checks pass**, so it works in a build script.
-
-### Flags
-
-| Flag | Default | Effect |
-|---|---|---|
-| `--pretrain-steps` | 2000 | Pretraining steps |
-| `--sft-steps` | 400 | SFT steps (LoRA SFT uses the same count) |
-| `--grpo-iterations` | 60 | GRPO iterations |
-| `--seed` | 42 | Seeds model init; stages have their own sub-seeds |
-| `--width` | 8 | Residual width |
-| `--layers` | 2 | Transformer blocks |
-| `--heads` | 2 | Attention heads (must divide `--width`) |
-| `--out` | `runs/` | Artifact directory |
-| `--html` | `app/index.html` | Page whose run-data block is replaced |
-| `--no-html` | off | Skip the HTML injection entirely |
-
-A fast smoke run, useful for checking a change end to end in well under a minute:
-
-```sh
-/Library/Frameworks/Python.framework/Versions/3.9/bin/python3 -m glassbox.export \
-  --pretrain-steps 50 --sft-steps 20 --grpo-iterations 3 --no-html --out /tmp/glassbox-smoke
-```
-
-Its numbers are meaningless; it exists to prove the wiring works. It still reports
-26/26 checks passing, because the checks do not depend on the model being good.
-
----
-
-## Open the app
-
-**In a browser, nothing installed:** **https://upalchowdhury.github.io/glassbox/**
-
-That is the same `app/index.html` served by GitHub Pages. The page is fully functional
-there: all fourteen lessons, all seven checkpoints, every recorded tensor, the
-browser-side labs and the prediction probes. What is *not* available on Pages is
-`server.py` and the `/api/*` routes, because Pages is static hosting — live inference from
-a chosen checkpoint, the live gradient check, and rebuilding a run from your own text need
-the local server below.
-
-**Offline, no server.** `app/index.html` is a single self-contained file with the run
-data already inlined by `glassbox.export`. Just open it:
-
-```sh
-open /Users/upalc/Documents/deeplearning-tuts/llmtuning/app/index.html
-```
-
-No build step, no web server, no network. If you move the file somewhere else it still
-works, because the run data travels inside it.
-
-**With the server, if you want the live API.** `server.py` serves the same page plus
-JSON endpoints that can re-run stages on demand. It needs the extras from
-`requirements-server.txt`.
-
-```sh
-/Library/Frameworks/Python.framework/Versions/3.9/bin/python3 server.py
-# then open http://127.0.0.1:8077
-```
-
-It listens on `127.0.0.1:8077` by default; `--host`, `--port` and `--log-level` change
-that. The server is strictly optional — it adds live interaction, not content.
-
----
-
-## The path through it
-
-The app's fourteen pages are an order, not a menu. Each one depends on the one before,
-and every page ends with a **Predict before you look** card that commits you to an answer
-before revealing the recorded number.
-
-| # | Page | The question it answers |
-|---|---|---|
-| 1 | Start here | What is this, and did the model actually learn anything? |
-| 2 | Text becomes ids | Why are ids categories rather than numbers, and what does a learned subword vocabulary buy? |
-| 3 | Follow one token | Where does a single number in the middle of the model come from? |
-| 4 | One gradient step | How does a mistake become a weight change, and can the gradient be trusted? |
-| 5 | Channel mixing | What does an MLP do that a single projection cannot? |
-| 6 | Pretrain and overfit | What is the difference between optimising, memorising and generalising? |
-| 7 | Make text appear | How does text get produced, and what makes it stop? |
-| 8 | Teach instructions | What changes when you mask the loss, and what does it cost? |
-| 9 | Adapters and rank | What does freezing the base model actually constrain? |
-| 10 | Preferences and DPO | What do you do with a ranking, and what does optimising it break? |
-| 11 | Verifiers and GRPO | Where does a reward come from, and how is it turned into an update? |
-| 12 | What counts as proof | Which observations would count as evidence of improvement? |
-| 13 | Every check, measured | Which properties hold, and what are their measured values? |
-| 14 | Course map | Which axes must not be conflated, and what is still absent? |
-
-Pages 1-7 are the mechanism. Pages 8-11 are the four post-training stages, and pages
-8 and 9 are deliberately siblings: same data, same objective, different trainable
-parameters. Pages 12-13 are how you would know any of it worked.
-
-The checkpoint selector in the top bar applies everywhere. Switching it re-renders every
-tensor, gradient and sample on the current page from that checkpoint's own recorded run,
-so the same lesson can be read at seven points in the model's life.
-
----
-
-## Checks and tests
-
-Two different things, and it is worth knowing which is which.
-
-**The 26 numerical checks** are properties of the implementation. They ship inside the
-package, run as the last stage of every `glassbox.export` build, and decide its exit code.
-To run them on their own, in about ten seconds:
-
-```sh
-make checks          # 26/26 passed
-make checks-verbose  # the same, printing every measured value
-```
-
-which is:
-
-```sh
-/Library/Frameworks/Python.framework/Versions/3.9/bin/python3 -m glassbox.checks
-```
-
-It pretrains for 400 steps and instruction-tunes for 150 before checking. That is
-deliberate: several checks are vacuous on an untrained model — the loss-mask alignment,
-EOS supervision and DPO-reference checks all need a model that has actually been trained —
-so checking an untrained one would still print 26/26 while exercising far less. Use
-`--steps N` to change how much training happens first.
-
-**The test suite** lives in `tests/` as plain `unittest.TestCase` classes. It runs two
-ways, with no third-party dependency required:
-
-```sh
-# standard library only — always works
-/Library/Frameworks/Python.framework/Versions/3.9/bin/python3 -m tests.run_checks
-
-# pytest collects the same TestCase classes (pytest 7.4.3 is installed here)
-/Library/Frameworks/Python.framework/Versions/3.9/bin/python3 -m pytest tests -q
-```
-
-236 tests are collected. All three targets pass, measured:
-
-| Command | Collected | Passed | Failed | Skipped | Wall | Exit |
-|---|---|---|---|---|---|---|
-| `make test` (`--fast`) | 236 | 222 | 0 | 14 | 10.2 s | 0 |
-| `make test-full` | 236 | 235 | 0 | 1 | 19.8 s | 0 |
-| `make test-all` | 236 | **236** | 0 | **0** | 32.6 s | 0 |
-
-`make test-all` is the only one that leaves nothing out — it sets
-`GLASSBOX_SLOW_TESTS=1`. The single remaining skip in `make test-full` is a server test
-that trains a whole run to prove the script-injection payload is escaped in the served
-HTML.
-
-`--fast` sets `GLASSBOX_SKIP_SLOW=1`, which skips the 13 end-to-end export tests that
-each need a trained run. They are worth the extra ten seconds, so prefer `make test-full`
-unless you are iterating tightly.
-
-Other options are `-v` (repeat for more detail), `-k PATTERN` to pick files, and
-`--failfast`. `tests/README.md` documents the expected-failure policy: a deliberately
-recorded known defect keeps its full-strength assertion and is reported separately rather
-than failing the run.
-
----
+The following measurements and implementation notes were recorded by the original
+project under its stated Python/PyTorch configuration. They are preserved as
+reference, not newly measured results of the reading edition. Consult the artifact's
+manifest and current test output before expecting exact reproduction.
 
 ## Measured results
 

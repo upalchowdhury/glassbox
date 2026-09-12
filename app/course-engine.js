@@ -1,137 +1,95 @@
-/* Glassbox course simulations. Deliberately small, deterministic, and browser-safe. */
-(function attachCourseEngine(root, factory) {
+/* Transparent worked-example arithmetic, not a training simulator or benchmark. */
+(function(root, factory) {
   const api = factory();
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.GlassboxCourse = api;
-}(typeof window !== 'undefined' ? window : globalThis, function courseEngine() {
+})(typeof window === 'undefined' ? globalThis : window, function() {
   'use strict';
-
-  const round = (value, places = 4) => Number(Number(value).toFixed(places));
-  const softmax = values => {
-    const peak = Math.max(...values);
-    const exp = values.map(v => Math.exp(v - peak));
-    const total = exp.reduce((a, b) => a + b, 0);
-    return exp.map(v => v / total);
-  };
-  const dot = (a, b) => a.reduce((sum, value, i) => sum + value * b[i], 0);
-  const matmul = (left, right) => left.map(row => right[0].map((_, col) =>
-    row.reduce((sum, value, i) => sum + value * right[i][col], 0)));
-
-  const fixtures = Object.freeze({
-    tinyGPT: {
-      prompt: 'pip has ', tokenIds: [35, 29, 35, 5, 28, 21, 38, 5],
-      target: 't', targetId: 39,
-      checkpoints: {
-        0: { loss: 3.8074, targetProbability: 0.0219, adamStep: 0, weight: 0.018, gradient: 0.116 },
-        10: { loss: 2.4361, targetProbability: 0.0874, adamStep: 10, weight: 0.012, gradient: 0.042 },
-        100: { loss: 1.484, targetProbability: 0.2271, adamStep: 100, weight: -0.004, gradient: 0.009 },
-      },
-    },
-    moe: {
-      residual: [0.6, -0.2, 0.8],
-      normalLogits: [1.7, 0.9, 0.2, -0.3],
-      collapseLogits: [4.8, 0.3, 0.2, 0.1],
-      experts: [[0.72, -0.11, 0.31], [0.12, 0.48, -0.08], [-0.34, 0.22, 0.51], [0.41, 0.05, -0.27]],
-      normalDispatch: [0, 1, 0, 2, 1, 3, 0, 2],
-      collapsedDispatch: [0, 0, 0, 0, 0, 0, 0, 0],
-    },
-    lora: {
-      input: 4, output: 4,
-      A: [[0.2, -0.1, 0.3, 0.1], [-0.2, 0.4, 0.1, -0.3], [0.1, 0.2, -0.2, 0.3], [0.3, -0.2, 0.2, 0.1]],
-      B: [[0.3, -0.1, 0.2, 0.1], [-0.2, 0.4, -0.1, 0.2], [0.1, 0.2, 0.3, -0.2], [0.2, -0.3, 0.1, 0.4]],
-    },
-    environment: {
-      structured: { train: ['set-status-green', 'set-status-blue'], validation: ['set-status-amber'], heldout: ['set-status-red'], schema: '{"status":"green","note":"short"}' },
-      code: { train: ['fix_add'], validation: ['fix_subtract'], heldout: ['fix_clamp'], files: ['math.js', 'math.test.js', 'README.md'] },
-    },
-  });
-
-  function moeRoute({ topK = 2, collapse = false, capacity = 3 } = {}) {
-    const logits = collapse ? fixtures.moe.collapseLogits : fixtures.moe.normalLogits;
+  const finite = x => typeof x === 'number' && Number.isFinite(x);
+  function requireValues(values) {
+    if (!Array.isArray(values) || !values.length || !values.every(finite)) throw new RangeError('Expected a nonempty array of finite numbers.');
+  }
+  function softmax(logits) {
+    requireValues(logits);
+    const peak = Math.max(...logits);
+    const values = logits.map(x => Math.exp(x - peak));
+    const sum = values.reduce((a, b) => a + b, 0);
+    return values.map(x => x / sum);
+  }
+  function lossTrace(logits = [Math.log(2), 0, 0], target = 1) {
+    requireValues(logits);
+    if (!Number.isInteger(target) || target < 0 || target >= logits.length) throw new RangeError('Invalid target.');
     const probabilities = softmax(logits);
-    const selected = probabilities.map((probability, expert) => ({ expert, probability }))
-      .sort((a, b) => b.probability - a.probability).slice(0, Math.max(1, Math.min(4, topK)));
-    const selectedMass = selected.reduce((sum, item) => sum + item.probability, 0);
-    const masked = probabilities.map((probability, expert) => selected.some(item => item.expert === expert)
-      ? probability / selectedMass : 0);
-    const output = fixtures.moe.experts[0].map((_, channel) => round(masked.reduce(
-      (sum, probability, expert) => sum + probability * fixtures.moe.experts[expert][channel], 0)));
-    const dispatch = collapse ? fixtures.moe.collapsedDispatch : fixtures.moe.normalDispatch;
-    const counts = [0, 1, 2, 3].map(expert => dispatch.filter(item => item === expert).length);
-    const dropped = counts.map(count => Math.max(0, count - capacity));
-    const dispatchFraction = counts.map(count => count / dispatch.length);
-    const meanProbability = collapse ? probabilities : [0.31, 0.27, 0.24, 0.18];
-    const auxiliaryLoss = round(4 * dot(meanProbability, dispatchFraction));
-    return { logits, probabilities: probabilities.map(v => round(v)), selected, masked: masked.map(v => round(v)), output,
-      counts, dropped, auxiliaryLoss, collapse, capacity, selectedMass: round(selectedMass) };
+    const peak = Math.max(...logits);
+    const loss = peak - logits[target] + Math.log(logits.reduce((s, z) => s + Math.exp(z - peak), 0));
+    return { logits, probabilities, loss, gradients: probabilities.map((p, j) => p - Number(j === target)) };
   }
-
-  function loraUpdate(rank = 2) {
-    const r = Math.max(1, Math.min(4, Number(rank)));
-    const A = fixtures.lora.A.slice(0, r);
-    const B = fixtures.lora.B.map(row => row.slice(0, r));
-    const delta = matmul(B, A).map(row => row.map(value => round(value)));
-    return { rank: r, A, B, delta, shape: [fixtures.lora.output, fixtures.lora.input],
-      trainableParameters: r * (fixtures.lora.input + fixtures.lora.output), fullParameters: fixtures.lora.input * fixtures.lora.output,
-      frozenBase: true };
+  function adamFirstStep({weight = 0.4, gradient = 0.2, rate = 0.1, decay = 0.01, beta1 = 0.9, beta2 = 0.999, epsilon = 1e-8} = {}) {
+    if (![weight, gradient, rate, decay, beta1, beta2, epsilon].every(finite) ||
+        rate < 0 || decay < 0 || beta1 < 0 || beta1 >= 1 || beta2 < 0 || beta2 >= 1 || epsilon <= 0) throw new RangeError('Invalid optimizer inputs.');
+    const m = (1 - beta1) * gradient, v = (1 - beta2) * gradient ** 2;
+    const mHat = m / (1 - beta1), vHat = v / (1 - beta2);
+    return { weight, gradient, rate, decay, beta1, beta2, epsilon, m, v, mHat, vHat,
+      updated: (1 - rate * decay) * weight - rate * mHat / (Math.sqrt(vHat) + epsilon) };
   }
-
-  function verifyStructuredOutput(text) {
-    try {
-      const value = JSON.parse(text);
-      const ok = typeof value === 'object' && value !== null && value.status === 'green' && typeof value.note === 'string';
-      return { ok, evidence: ok ? 'JSON parsed; status is exactly "green" and note is a string.' : 'Expected JSON with status "green" and a string note.' };
-    } catch (_) { return { ok: false, evidence: 'Not valid JSON; prose and partial JSON are rejected.' }; }
+  function matmul(a, b) {
+    if (!Array.isArray(a) || !a.length || !Array.isArray(b) || !b.length) throw new RangeError('Empty matrix.');
+    a.forEach(requireValues); b.forEach(requireValues);
+    if (a.some(row => row.length !== b.length) || b.some(row => row.length !== b[0].length)) throw new RangeError('Incompatible matrix shapes.');
+    return a.map(row => b[0].map((_, j) => row.reduce((sum, x, i) => sum + x * b[i][j], 0)));
   }
-
-  function verifyCodeRepair(source) {
-    const hasFix = /return\s+a\s*\+\s*b\s*;?/.test(source);
-    const hardCodes = /return\s+2\s*;?/.test(source);
-    const ok = hasFix && !hardCodes;
-    return { ok, tests: [{ name: 'adds positive values', pass: ok }, { name: 'adds negative values', pass: ok },
-      { name: 'does not hard-code one fixture', pass: !hardCodes }], evidence: ok ? 'All pinned tests pass.' : 'The pinned tests reject this patch.' };
+  function loraExample() {
+    const W = [[1, 0], [0, 1]], A = [[1, 2]], B = [[0.1], [0.2]], x = [[1], [0]];
+    const delta = matmul(B, A);
+    const merged = W.map((row, i) => row.map((v, j) => v + delta[i][j]));
+    return { W, A, B, delta, merged, baseOutput: matmul(W, x), adaptedOutput: matmul(merged, x),
+      adapterParameters: 4, baseParameters: 4 };
   }
-
-  function splitIsolated(environment) {
-    const groups = [environment.train, environment.validation, environment.heldout];
-    return groups.every((group, index) => group.every(item => groups.every((other, otherIndex) =>
-      otherIndex === index || !other.includes(item))));
+  function moeRoute({topK = 2, capacity = 2} = {}) {
+    if (!Number.isInteger(topK) || topK < 1 || topK > 4 || !Number.isInteger(capacity) || capacity < 0) throw new RangeError('Invalid routing settings.');
+    const batch = [[0.6, 0.3, 0.08, 0.02], [0.6, 0.3, 0.08, 0.02], [0.6, 0.08, 0.3, 0.02], [0.6, 0.08, 0.02, 0.3]];
+    const experts = [[2, 0], [0, 3], [1, 1], [-1, 1]];
+    const selections = batch.map(ps => ps.map((p, id) => ({p, id})).sort((a, b) => b.p - a.p || a.id - b.id).slice(0, topK));
+    const probabilities = batch[0];
+    const mass = selections[0].reduce((s, item) => s + item.p, 0);
+    const weights = probabilities.map((p, id) => selections[0].some(x => x.id === id) ? p / mass : 0);
+    const output = experts[0].map((_, j) => weights.reduce((s, w, i) => s + w * experts[i][j], 0));
+    const counts = experts.map((_, id) => selections.reduce((s, row) => s + Number(row.some(x => x.id === id)), 0));
+    return {probabilities, weights, output, counts, accepted: counts.map(n => Math.min(n, capacity)), overflow: counts.map(n => Math.max(0, n - capacity)),
+      assignments: counts.reduce((s, n) => s + n, 0), capacity,
+      // Output above is the first token's weighted merge BEFORE capacity dispatch.
+      outputStage: 'before capacity'};
   }
-
-  function environmentValid(spec) {
-    return Boolean(spec && spec.reset && spec.termination && spec.verifier && spec.heldout && spec.antiHack);
+  function verifyStructuredOutput(text, requestedStatus) {
+    if (typeof requestedStatus !== 'string' || !requestedStatus.trim()) throw new RangeError('The task must specify a status.');
+    let value;
+    try { value = JSON.parse(text); }
+    catch (_) { return {syntax: false, schema: false, correct: false, ok: false, evidence: 'Rejected: not valid JSON.'}; }
+    const schema = value !== null && !Array.isArray(value) && typeof value === 'object' &&
+      Object.keys(value).length === 2 && Object.hasOwn(value, 'status') && Object.hasOwn(value, 'note') &&
+      typeof value.status === 'string' && typeof value.note === 'string' && value.note.trim().length > 0 && value.note.length <= 80;
+    const correct = Boolean(schema && value.status === requestedStatus);
+    return {syntax: true, schema: Boolean(schema), correct, ok: correct,
+      evidence: !schema ? 'Rejected: expected exactly status and a nonempty note of at most 80 characters.' :
+        correct ? 'Accepted: schema and requested status match. Note helpfulness is not assessed.' : 'Rejected: valid schema, wrong requested status.'};
   }
-
   function groupAdvantages(rewards) {
-    const mean = rewards.reduce((sum, reward) => sum + reward, 0) / rewards.length;
-    const variance = rewards.reduce((sum, reward) => sum + (reward - mean) ** 2, 0) / rewards.length;
-    const std = Math.sqrt(variance);
-    return { mean: round(mean), std: round(std), advantages: std === 0 ? rewards.map(() => 0) : rewards.map(reward => round((reward - mean) / std)) };
+    requireValues(rewards);
+    const mean = rewards.reduce((s, r) => s + r, 0) / rewards.length;
+    const std = Math.sqrt(rewards.reduce((s, r) => s + (r - mean) ** 2, 0) / rewards.length);
+    return {mean, std, advantages: std === 0 ? rewards.map(() => 0) : rewards.map(r => (r - mean) / std)};
   }
-
-  function grpoTrace({ brokenVerifier = false, groupSize = 8, rewardWeight = 1, sparse = true } = {}) {
-    const base = [1, 0, 1, 0, 1, 0, 1, 0];
-    const completions = ['{"status":"green","note":"fixed"}', '{"status":"green"}', '{"status":"green","note":"ok"}', 'green',
-      '{"status":"green","note":"done"}', '{"status":"red","note":"wrong"}', '{"status":"green","note":"fixed"}', 'answer: green'];
-    const count = Math.max(2, Math.min(8, Number(groupSize)));
-    const rewards = base.slice(0, count).map((reward, index) => round((brokenVerifier && index === 3 ? 1 : reward) * rewardWeight));
-    const stats = groupAdvantages(rewards);
-    const rollouts = completions.slice(0, count).map((text, index) => ({ text, reward: rewards[index], advantage: stats.advantages[index],
-      tokens: 7 + index * 2, termination: rewards[index] ? 'submit_solution()' : 'schema failure',
-      evidence: brokenVerifier && index === 3 ? 'Broken substring verifier accepted “green”.' : rewards[index] ? 'Strict verifier passed exact JSON.' : 'Strict verifier rejected the output.' }));
-    return { rollouts, ...stats, clippedRatio: 1.18, clipEpsilon: 0.2, sparse, brokenVerifier,
-      policyChange: 'Positive-advantage trajectories increase in probability; negative-advantage trajectories decrease.' };
+  function clippedSurrogate(ratio, advantage, epsilon = 0.2) {
+    if (![ratio, advantage, epsilon].every(finite) || ratio < 0 || epsilon < 0 || epsilon >= 1) throw new RangeError('Invalid surrogate inputs.');
+    const clipped = Math.min(1 + epsilon, Math.max(1 - epsilon, ratio));
+    return {ratio, advantage, clipped, surrogate: Math.min(ratio * advantage, clipped * advantage)};
   }
-
-  function scaleEstimate({ dataWorkers = 4, expertWorkers = 2, rolloutWorkers = 4, episodeSeconds = 18 } = {}) {
-    const rolloutRate = round(rolloutWorkers * 60 / episodeSeconds, 2);
-    const trainRate = round(dataWorkers * 3.2, 2);
-    const queue = round(Math.max(0, rolloutRate - trainRate), 2);
-    const utilization = round(Math.min(0.96, 0.32 + dataWorkers * 0.07 + expertWorkers * 0.08 + rolloutWorkers * 0.025), 2);
-    return { dataWorkers, expertWorkers, rolloutWorkers, episodeSeconds, rolloutRate, trainRate, queue, utilization,
-      checkpointMinutes: round(8 + (dataWorkers + expertWorkers) * 0.7, 1), costPerHour: round(dataWorkers * 1.4 + expertWorkers * 1.8 + rolloutWorkers * 0.6, 2) };
+  function queueEstimate({workers = 4, episodeSeconds = 20, learnerPerMinute = 8, minutes = 5, initialQueue = 0} = {}) {
+    if (![workers, episodeSeconds, learnerPerMinute, minutes, initialQueue].every(finite) ||
+        !Number.isInteger(workers) || workers < 0 || episodeSeconds <= 0 || learnerPerMinute < 0 || minutes < 0 || initialQueue < 0) throw new RangeError('Invalid queue inputs.');
+    const producedPerMinute = workers * 60 / episodeSeconds;
+    const netPerMinute = producedPerMinute - learnerPerMinute;
+    return {producedPerMinute, learnerPerMinute, netPerMinute, finalQueue: Math.max(0, initialQueue + netPerMinute * minutes)};
   }
-
-  return { fixtures, softmax, moeRoute, loraUpdate, verifyStructuredOutput, verifyCodeRepair, splitIsolated,
-    environmentValid, groupAdvantages, grpoTrace, scaleEstimate };
-}));
+  return {softmax, lossTrace, adamFirstStep, matmul, loraExample, moeRoute, verifyStructuredOutput, groupAdvantages, clippedSurrogate, queueEstimate};
+});

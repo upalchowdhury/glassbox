@@ -1,3 +1,23 @@
+## Current direction: reading-first (supersedes interaction requirements below)
+
+The reader must be able to learn the conceptual journey without writing code, running
+experiments, or passing quizzes. The original implementation brief below remains as
+topic coverage and historical context; its mandatory interaction loops, experiment
+forks, and GRPO unlock gate are no longer requirements for the reading path.
+
+Use eight connected chapters with complete prose, worked numerical examples, failure
+cases, explained mental-review questions, takeaways, and bridges. Default to the full
+explanation. Offer summaries, optional derivations, a glossary, section bookmarks,
+explicit reading progress, and a complete-book/print view. Essential explanations
+must not depend on clicking a control. Preserve the recorded tensor reference lessons
+as optional material. Label hypothetical calculations and measured traces separately.
+
+Aim for deep conceptual understanding: explaining, predicting, and diagnosing. Do not
+promise professional expertise or treat visits/completion as evidence of mastery.
+Do not invent checkpoints, benchmark improvements, test execution, or GPU utilization.
+
+## Original interactive implementation brief
+
 You are implementing the next major version of this repository: a visual, browser-based course that teaches one continuous LLM journey:
 
 **Tiny GPT pretraining → MoE → SFT/LoRA → RL environment design → GRPO/RLVR → agent evaluation → distributed scaling.**

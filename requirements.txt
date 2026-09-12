@@ -1,7 +1,7 @@
 # Glassbox — engine requirements.
 #
 # This is everything you need to build a run artifact, run the 26 numerical
-# checks, and open the app. Nothing here is optional.
+# checks. The reading app itself needs none of these dependencies.
 #
 # Verified on this machine:
 #   CPython 3.9.1 (v3.9.1:1e5d33e9b9)

@@ -1,8 +1,7 @@
 # Publish the Glassbox app to GitHub Pages.
 #
-# app/index.html is a single self-contained file: the run data is inlined by
-# `python -m glassbox.export`, and the page loads no external scripts, styles
-# or fonts and makes no fetch/XHR calls. So there is nothing to build here —
+# app/index.html embeds recorded run data and loads sibling reading scripts
+# and styles. There are no external runtime dependencies or frontend build —
 # the directory is uploaded as-is and served at the site root, which is why the
 # published URL has no /app/index.html tail.
 #
@@ -40,6 +39,13 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify reading content and worked calculations
+        run: node --test app/course-engine.test.js
 
       - name: Fail if the app has no run data
         # A page whose data block is still the empty placeholder renders an
